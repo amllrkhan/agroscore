@@ -1,0 +1,859 @@
+<!-- demo/index.html (обновлённая версия с реальным чат-ботом) -->
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="page.title">AgroScore.AI - Демонстрация</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @keyframes mesh {
+            0% {
+                transform: scale(1) rotate(0deg);
+            }
+
+            50% {
+                transform: scale(1.2) rotate(10deg);
+            }
+
+            100% {
+                transform: scale(1) rotate(0deg);
+            }
+        }
+
+        .animate-mesh {
+            animation: mesh 20s infinite ease-in-out;
+        }
+
+        .chat-enter {
+            opacity: 0;
+            transform: translateY(10px) scale(0.95);
+            pointer-events: none;
+        }
+
+        .chat-enter.active {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+
+        /* Markdown стили для чата */
+        .chat-message-content h1,
+        .chat-message-content h2,
+        .chat-message-content h3 {
+            font-weight: 600;
+            margin-top: 0.5em;
+            margin-bottom: 0.25em;
+        }
+
+        .chat-message-content h1 {
+            font-size: 1.1em;
+        }
+
+        .chat-message-content h2 {
+            font-size: 1.05em;
+        }
+
+        .chat-message-content h3 {
+            font-size: 1em;
+        }
+
+        .chat-message-content p {
+            margin-bottom: 0.5em;
+        }
+
+        .chat-message-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .chat-message-content ul,
+        .chat-message-content ol {
+            margin-left: 1.25em;
+            margin-bottom: 0.5em;
+        }
+
+        .chat-message-content li {
+            margin-bottom: 0.25em;
+        }
+
+        .chat-message-content code {
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 0.125em 0.25em;
+            border-radius: 0.25em;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .chat-message-content pre {
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 0.5em;
+            border-radius: 0.5em;
+            overflow-x: auto;
+            margin-bottom: 0.5em;
+        }
+
+        .chat-message-content pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .chat-message-content strong {
+            font-weight: 600;
+        }
+
+        .chat-message-content em {
+            font-style: italic;
+        }
+
+        .chat-message-content blockquote {
+            border-left: 3px solid rgba(0, 0, 0, 0.1);
+            padding-left: 0.75em;
+            margin-left: 0;
+            color: rgba(0, 0, 0, 0.6);
+        }
+
+        /* Chat button animations */
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        @keyframes bounce-gentle {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+
+        @keyframes wiggle {
+
+            0%,
+            100% {
+                transform: rotate(0deg) scale(1);
+            }
+
+            25% {
+                transform: rotate(-10deg) scale(1.1);
+            }
+
+            75% {
+                transform: rotate(10deg) scale(1.1);
+            }
+        }
+
+        @keyframes glow-pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px rgba(16, 185, 129, 0.4), 0 0 40px rgba(16, 185, 129, 0.2);
+            }
+
+            50% {
+                box-shadow: 0 0 30px rgba(16, 185, 129, 0.6), 0 0 60px rgba(16, 185, 129, 0.3);
+            }
+        }
+
+        .chat-trigger-button {
+            animation: bounce-gentle 2s ease-in-out infinite;
+        }
+
+        .chat-trigger-button::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.3);
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .chat-trigger-button:hover {
+            animation: wiggle 0.5s ease-in-out;
+        }
+
+        .chat-icon {
+            animation: wiggle 3s ease-in-out infinite;
+            animation-delay: 1s;
+        }
+    </style>
+</head>
+
+<!-- Background Gradients -->
+<div class="fixed inset-0 w-full h-full z-0 pointer-events-none overflow-hidden">
+    <div
+        class="absolute top-[-20%] left-[20%] w-[60vw] h-[60vw] bg-emerald-100/50 rounded-full blur-[120px] animate-mesh mix-blend-multiply">
+    </div>
+    <div class="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-blue-100/40 rounded-full blur-[120px] animate-mesh mix-blend-multiply"
+        style="animation-delay: -5s;"></div>
+</div>
+
+<!-- Navigation -->
+<nav class="fixed top-0 w-full z-50 px-6 py-6 transition-transform duration-300">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <a href="/" class="group flex items-center gap-2 mix-blend-darken">
+            <div class="text-xl font-semibold tracking-tighter text-zinc-900 leading-none">
+                AgroScore<span class="text-emerald-600">.AI</span>
+            </div>
+        </a>
+        <div class="flex items-center gap-4">
+            <!-- Language Switcher -->
+            <div class="relative">
+                <button id="lang-switcher" onclick="toggleLangMenu()"
+                    class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:text-zinc-900 bg-white/80 backdrop-blur-sm border border-zinc-200 rounded-lg hover:bg-white transition-all">
+                    <i data-lucide="globe" class="w-3.5 h-3.5"></i>
+                    <span id="current-lang">RU</span>
+                    <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                </button>
+                <div id="lang-menu"
+                    class="hidden absolute right-0 mt-2 w-32 bg-white border border-zinc-200 rounded-lg shadow-lg overflow-hidden">
+                    <button onclick="switchLanguage('ru')"
+                        class="w-full px-4 py-2 text-left text-xs hover:bg-zinc-50 transition-colors flex items-center gap-2">
+                        <span>Русский</span>
+                    </button>
+                    <button onclick="switchLanguage('en')"
+                        class="w-full px-4 py-2 text-left text-xs hover:bg-zinc-50 transition-colors flex items-center gap-2">
+                        <span>English</span>
+                    </button>
+                    <button onclick="switchLanguage('uz')"
+                        class="w-full px-4 py-2 text-left text-xs hover:bg-zinc-50 transition-colors flex items-center gap-2">
+                        <span>O'zbek</span>
+                    </button>
+                </div>
+            </div>
+            <a href="/"
+                class="text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors flex items-center gap-1">
+                <i data-lucide="arrow-left" class="w-3 h-3"></i>
+                <span data-i18n="nav.home">На главную</span>
+            </a>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<main class="relative z-10 w-full min-h-screen flex flex-col items-center pt-32 pb-20 px-6">
+
+    <div class="max-w-5xl w-full">
+
+        <!-- Header Section -->
+        <div class="text-center mb-16 reveal active">
+            <h1 class="text-4xl md:text-5xl font-semibold tracking-tighter text-zinc-900 mb-6 leading-[1.1]"
+                data-i18n="hero.title">
+                Обзор платформы
+            </h1>
+            <p class="text-base text-zinc-500 max-w-2xl mx-auto font-light leading-relaxed mb-8"
+                data-i18n="hero.subtitle">
+                Посмотрите, как работает скоринг фермерских хозяйств в реальном времени.
+            </p>
+            <div class="flex justify-center">
+                <a href="https://agroscore-app.onrender.com/" target="_blank" rel="noopener noreferrer"
+                    class="group inline-flex items-center gap-2 bg-zinc-900 text-white text-sm font-medium px-6 py-3 rounded-full hover:bg-zinc-800 transition-all hover:scale-[1.02] shadow-xl shadow-zinc-200 active:scale-[0.98]">
+                    <span data-i18n="hero.cta">Перейти к прототипу</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        data-lucide="arrow-right"
+                        class="lucide lucide-arrow-right w-4 h-4 group-hover:translate-x-0.5 transition-transform">
+                        <path d="M5 12h14"></path>
+                        <path d="m12 5 7 7-7 7"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+
+
+        <!-- 1. VIDEO SECTION -->
+        <div
+            class="relative w-full aspect-video rounded-3xl overflow-hidden shadow-2xl border border-zinc-200 bg-zinc-900 mb-20 reveal group">
+            <iframe
+                class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-500"
+                src="https://www.youtube.com/embed/3O5WipnteVo?autoplay=1&mute=1" title="AgroScore Demo Video"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen>
+            </iframe>
+            <div class="absolute inset-0 rounded-3xl border border-white/10 pointer-events-none"></div>
+        </div>
+
+        <!-- Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 mb-20">
+
+            <!-- 2. DESCRIPTION (Left Col) -->
+            <div class="lg:col-span-7 space-y-8 reveal">
+                <div>
+                    <h2 class="text-2xl font-semibold tracking-tight text-zinc-900 mb-4" data-i18n="about.title">О
+                        проекте</h2>
+                    <div class="prose prose-zinc prose-sm text-zinc-600 leading-loose">
+                        <p class="mb-4" data-i18n="about.desc1">
+                            Демо показывает, как наше приложение анализирует финансовые, климатические и
+                            производственные данные фермеров и превращает их в скоринговый балл с рекомендациями по
+                            кредиту.
+                        </p>
+                        <p data-i18n="about.desc2">
+                            Это решение помогает банкам снижать риски и делает финансирование сельхозпроизводителей
+                            прозрачным и доступным. Система автоматически агрегирует данные из разрозненных
+                            источников, создавая единый профиль заемщика.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                    <div class="p-4 rounded-2xl bg-white border border-zinc-200 shadow-sm">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 mb-3">
+                            <i data-lucide="shield-check" class="w-4 h-4"></i>
+                        </div>
+                        <h3 class="text-sm font-medium text-zinc-900 mb-1" data-i18n="features.risk.title">Снижение
+                            рисков</h3>
+                        <p class="text-xs text-zinc-500 leading-relaxed" data-i18n="features.risk.desc">Минимизация
+                            невозвратов за счет точного
+                            прогнозирования.</p>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-white border border-zinc-200 shadow-sm">
+                        <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 mb-3">
+                            <i data-lucide="search" class="w-4 h-4"></i>
+                        </div>
+                        <h3 class="text-sm font-medium text-zinc-900 mb-1" data-i18n="features.transparency.title">
+                            Прозрачность</h3>
+                        <p class="text-xs text-zinc-500 leading-relaxed" data-i18n="features.transparency.desc">Понятная
+                            логика принятия решений для всех
+                            участников.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TECH SPECS (Right Col) -->
+            <div class="lg:col-span-5 reveal" style="transition-delay: 100ms;">
+                <div class="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm h-full flex flex-col">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-zinc-400 mb-6"
+                        data-i18n="tech.title">Технологический
+                        стек</h3>
+
+                    <div class="space-y-6 flex-grow">
+                        <!-- Backend -->
+                        <div class="flex items-start gap-4">
+                            <div class="mt-1 p-2 bg-zinc-100 rounded-lg text-zinc-600">
+                                <i data-lucide="server" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-medium text-zinc-900" data-i18n="tech.core.title">Core
+                                    Architecture</h4>
+                                <p class="text-xs text-zinc-500 mt-1 mb-2" data-i18n="tech.core.desc">Проект построен на
+                                    Python и FastAPI для
+                                    высокой производительности.</p>
+                                <div class="flex gap-2">
+                                    <span
+                                        class="px-2 py-1 bg-yellow-50 text-yellow-700 rounded text-[10px] font-mono border border-yellow-100">Python</span>
+                                    <span
+                                        class="px-2 py-1 bg-teal-50 text-teal-700 rounded text-[10px] font-mono border border-teal-100">FastAPI</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI -->
+                        <div class="flex items-start gap-4">
+                            <div class="mt-1 p-2 bg-zinc-100 rounded-lg text-zinc-600">
+                                <i data-lucide="brain-circuit" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-medium text-zinc-900" data-i18n="tech.ai.title">AI Моделирование
+                                </h4>
+                                <p class="text-xs text-zinc-500 mt-1" data-i18n="tech.ai.desc">Использует AI-модели для
+                                    прогнозирования
+                                    урожайности и финансовой устойчивости фермеров.</p>
+                            </div>
+                        </div>
+
+                        <!-- Status -->
+                        <div class="flex items-start gap-4 pt-4 border-t border-zinc-100">
+                            <div class="mt-1 p-2 bg-zinc-100 rounded-lg text-zinc-600">
+                                <i data-lucide="flag" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h4 class="text-sm font-medium text-zinc-900" data-i18n="tech.status.title">Текущий
+                                        статус</h4>
+                                    <span
+                                        class="px-2 py-0.5 bg-zinc-900 text-white rounded-full text-[10px] font-bold tracking-wide">PROTOTYPE</span>
+                                </div>
+                                <ul class="text-xs text-zinc-500 space-y-1.5 list-disc list-inside mt-2">
+                                    <li data-i18n="tech.status.item1">Запуск мобильной версии</li>
+                                    <li data-i18n="tech.status.item2">Расширение на разные культуры</li>
+                                    <li data-i18n="tech.status.item3">Улучшение точности алгоритмов</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. PROTOTYPE LINK (CTA) -->
+        <div class="reveal" style="transition-delay: 200ms;">
+            <div
+                class="relative overflow-hidden rounded-3xl bg-zinc-900 px-6 py-12 md:px-12 md:py-16 text-center shadow-2xl">
+                <!-- Background Effects -->
+                <div class="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+                    <div
+                        class="absolute top-[-50%] left-[-10%] w-[500px] h-[500px] bg-emerald-500/20 rounded-full blur-[100px]">
+                    </div>
+                    <div
+                        class="absolute bottom-[-50%] right-[-10%] w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-[100px]">
+                    </div>
+                </div>
+
+                <div class="relative z-10 flex flex-col items-center">
+                    <div
+                        class="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center text-white mb-6 border border-white/10">
+                        <i data-lucide="zap" class="w-6 h-6"></i>
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-4" data-i18n="cta.title">
+                        Испытайте систему в действии
+                    </h2>
+                    <p class="text-zinc-400 max-w-lg mb-8 text-sm md:text-base" data-i18n="cta.subtitle">
+                        Доступ к рабочей версии прототипа. Загрузите данные и получите мгновенный скоринг.
+                    </p>
+
+                    <a href="https://agroscore-app.onrender.com/" target="_blank" rel="noopener noreferrer"
+                        class="group relative inline-flex items-center gap-2 bg-white text-zinc-900 text-sm font-semibold px-8 py-4 rounded-full hover:bg-emerald-50 transition-all hover:scale-[1.02] shadow-lg hover:shadow-emerald-500/20 active:scale-[0.98]">
+                        <span data-i18n="hero.cta">Перейти к прототипу</span>
+                        <i data-lucide="external-link"
+                            class="w-4 h-4 text-zinc-400 group-hover:text-emerald-600 transition-colors"></i>
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- API ACCESS SECTION -->
+        <div class="reveal mt-20" style="transition-delay: 300ms;">
+            <div class="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+                <div class="p-8 md:p-12">
+                    <div class="flex flex-col md:flex-row items-center justify-between gap-8">
+                        <div class="flex-1 text-center md:text-left">
+                            <div
+                                class="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium mb-4">
+                                <i data-lucide="code" class="w-3.5 h-3.5"></i>
+                                <span data-i18n="api.badge">Для разработчиков</span>
+                            </div>
+                            <h2 class="text-2xl md:text-3xl font-semibold tracking-tight text-zinc-900 mb-3"
+                                data-i18n="api.title">
+                                API доступ
+                            </h2>
+                            <p class="text-zinc-600 text-sm md:text-base leading-relaxed" data-i18n="api.description">
+                                Интегрируйте наш API скоринга в ваши системы. Полная документация с примерами запросов и
+                                ответов.
+                            </p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <a href="https://agrocredit-api.onrender.com/docs" target="_blank" rel="noopener noreferrer"
+                                class="group inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-semibold px-6 py-3.5 rounded-xl hover:bg-blue-700 transition-all hover:scale-[1.02] shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 active:scale-[0.98]">
+                                <i data-lucide="book-open" class="w-4 h-4"></i>
+                                <span data-i18n="api.button">Документация API</span>
+                                <i data-lucide="arrow-up-right"
+                                    class="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+
+<body
+    class="bg-zinc-50 text-zinc-900 selection:bg-emerald-100 selection:text-emerald-900 antialiased overflow-x-hidden relative">
+
+    <!-- Navigation and Main Content ... (оставляем как есть) -->
+
+    <!-- CHATBOT WIDGET -->
+    <div class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+
+        <!-- Chat Window -->
+        <div id="chat-window"
+            class="chat-enter hidden transition-all duration-300 origin-bottom-right w-[340px] max-w-[calc(100vw-3rem)] bg-white rounded-2xl border border-zinc-200 shadow-2xl flex flex-col overflow-hidden">
+            <!-- Header -->
+            <div class="p-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50 backdrop-blur-sm">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span class="text-sm font-semibold text-zinc-900 tracking-tight" data-i18n="chat.title">AI
+                        Помощник</span>
+                </div>
+                <button onclick="toggleChat()" class="text-zinc-400 hover:text-zinc-900 transition-colors">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Messages -->
+            <div id="chat-messages"
+                class="p-4 h-[300px] overflow-y-auto no-scrollbar space-y-4 bg-white flex flex-col-reverse"></div>
+
+            <!-- Input -->
+            <div class="p-3 border-t border-zinc-100 bg-white">
+                <form id="chat-form" class="relative">
+                    <input id="chat-input" type="text" data-i18n-placeholder="chat.placeholder"
+                        placeholder="Задайте вопрос..."
+                        class="w-full pl-4 pr-10 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-zinc-400 text-zinc-900">
+                    <button type="submit"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Chat Trigger -->
+        <button onclick="toggleChat()"
+            class="chat-trigger-button group relative h-14 w-14 bg-zinc-900 hover:bg-zinc-800 text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 z-50">
+            <i data-lucide="message-circle" class="chat-icon w-6 h-6 group-hover:scale-110 transition-transform"></i>
+            <span
+                class="absolute top-0 right-0 h-3 w-3 bg-emerald-500 border-2 border-white rounded-full animate-pulse"></span>
+        </button>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // ============================================
+        // API CONFIGURATION
+        // ============================================
+        // ВАЖНО: Замените URL ниже на ваш Render.com URL сервера
+        // Например: 'https://your-server-name.onrender.com'
+        const PRODUCTION_API_URL = 'https://agrocredit-server.onrender.com';
+
+        // Автоматическое определение окружения
+        const isLocalhost = window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1' ||
+            window.location.hostname === '';
+
+        const API_BASE_URL = '/api';
+
+        console.log('🌐 API Base URL:', API_BASE_URL);
+        // ============================================
+
+        // Intersection Observer для анимаций
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('active'); });
+        }, { threshold: 0.1 });
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // Header scroll
+        let lastScrollTop = 0;
+        const nav = document.querySelector('nav');
+        window.addEventListener('scroll', () => {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            if (scrollTop > lastScrollTop) nav.classList.add('-translate-y-full');
+            else nav.classList.remove('-translate-y-full');
+            lastScrollTop = scrollTop;
+        });
+
+        // Chat functions
+        const chatWindow = document.getElementById('chat-window');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+
+        function toggleChat() {
+            chatWindow.classList.toggle('hidden');
+            chatWindow.classList.toggle('active');
+        }
+
+        function addMessage(message, sender = 'bot') {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'flex gap-3 ' + (sender === 'user' ? 'flex-row-reverse' : '');
+
+            // Для сообщений бота парсим Markdown
+            const processedMessage = sender === 'bot' ? marked.parse(message) : message;
+
+            msgDiv.innerHTML = sender === 'user' ? `
+                <div class="p-3 bg-zinc-900 text-white rounded-2xl rounded-tr-none text-xs leading-relaxed shadow-sm max-w-[80%]">${message}</div>
+            ` : `
+                <div class="w-8 h-8 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="bot" class="w-4 h-4 text-zinc-600"></i>
+                </div>
+                <div class="flex flex-col gap-1 max-w-[80%]">
+                    <div class="text-[10px] text-zinc-400 font-medium ml-1">AgroBot</div>
+                    <div class="chat-message-content p-3 bg-zinc-50 border border-zinc-100 rounded-2xl rounded-tl-none text-xs text-zinc-700 leading-relaxed shadow-sm">${processedMessage}</div>
+                </div>
+            `;
+            chatMessages.prepend(msgDiv);
+            lucide.createIcons();
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if (!message) return;
+            addMessage(message, 'user');
+            chatInput.value = '';
+
+            // Показываем индикатор загрузки с уникальным ID
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'loading-message';
+            loadingDiv.className = 'flex gap-3';
+            loadingDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="bot" class="w-4 h-4 text-zinc-600"></i>
+                </div>
+                <div class="flex flex-col gap-1 max-w-[80%]">
+                    <div class="text-[10px] text-zinc-400 font-medium ml-1">AgroBot</div>
+                    <div class="p-3 bg-zinc-50 border border-zinc-100 rounded-2xl rounded-tl-none text-xs text-zinc-700 leading-relaxed shadow-sm">Думаю...</div>
+                </div>
+            `;
+            chatMessages.prepend(loadingDiv);
+            lucide.createIcons();
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/chat`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message })
+                });
+
+                // Удаляем индикатор загрузки
+                const loadingElement = document.getElementById('loading-message');
+                if (loadingElement) {
+                    loadingElement.remove();
+                }
+
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+
+                const data = await res.json();
+                addMessage(data.reply || "Ошибка AI");
+            } catch (err) {
+                console.error('Chat error:', err);
+                // Удаляем индикатор загрузки при ошибке
+                const loadingElement = document.getElementById('loading-message');
+                if (loadingElement) {
+                    loadingElement.remove();
+                }
+                addMessage("❌ Ошибка соединения с сервером. Проверьте, что сервер запущен на " + API_BASE_URL);
+            }
+        });
+
+        // ============================================
+        // MULTILINGUAL SUPPORT
+        // ============================================
+        const translations = {
+            ru: {
+                'page.title': 'AgroScore.AI - Демонстрация',
+                'nav.home': 'На главную',
+                'hero.title': 'Обзор платформы',
+                'hero.subtitle': 'Посмотрите, как работает скоринг фермерских хозяйств в реальном времени.',
+                'hero.cta': 'Перейти к прототипу',
+                'about.title': 'О проекте',
+                'about.desc1': 'Демо показывает, как наше приложение анализирует финансовые, климатические и производственные данные фермеров и превращает их в скоринговый балл с рекомендациями по кредиту.',
+                'about.desc2': 'Это решение помогает банкам снижать риски и делает финансирование сельхозпроизводителей прозрачным и доступным. Система автоматически агрегирует данные из разрозненных источников, создавая единый профиль заемщика.',
+                'features.risk.title': 'Снижение рисков',
+                'features.risk.desc': 'Минимизация невозвратов за счет точного прогнозирования.',
+                'features.transparency.title': 'Прозрачность',
+                'features.transparency.desc': 'Понятная логика принятия решений для всех участников.',
+                'tech.title': 'Технологический стек',
+                'tech.core.title': 'Core Architecture',
+                'tech.core.desc': 'Проект построен на Python и FastAPI для высокой производительности.',
+                'tech.ai.title': 'AI Моделирование',
+                'tech.ai.desc': 'Использует AI-модели для прогнозирования урожайности и финансовой устойчивости фермеров.',
+                'tech.status.title': 'Текущий статус',
+                'tech.status.item1': 'Запуск мобильной версии',
+                'tech.status.item2': 'Расширение на разные культуры',
+                'tech.status.item3': 'Улучшение точности алгоритмов',
+                'cta.title': 'Испытайте систему в действии',
+                'cta.subtitle': 'Доступ к рабочей версии прототипа. Загрузите данные и получите мгновенный скоринг.',
+                'api.badge': 'Для разработчиков',
+                'api.title': 'API доступ',
+                'api.description': 'Интегрируйте наш API скоринга в ваши системы. Полная документация с примерами запросов и ответов.',
+                'api.button': 'Документация API',
+                'chat.title': 'AI Помощник',
+                'chat.placeholder': 'Задайте вопрос...'
+            },
+            en: {
+                'page.title': 'AgroScore.AI - Demo',
+                'nav.home': 'Home',
+                'hero.title': 'Platform Overview',
+                'hero.subtitle': 'See how farm scoring works in real-time.',
+                'hero.cta': 'Go to Prototype',
+                'about.title': 'About the Project',
+                'about.desc1': 'The demo shows how our application analyzes financial, climate, and production data of farmers and converts it into a scoring score with credit recommendations.',
+                'about.desc2': 'This solution helps banks reduce risks and makes financing agricultural producers transparent and accessible. The system automatically aggregates data from disparate sources, creating a unified borrower profile.',
+                'features.risk.title': 'Risk Reduction',
+                'features.risk.desc': 'Minimizing defaults through accurate forecasting.',
+                'features.transparency.title': 'Transparency',
+                'features.transparency.desc': 'Clear decision-making logic for all participants.',
+                'tech.title': 'Technology Stack',
+                'tech.core.title': 'Core Architecture',
+                'tech.core.desc': 'Built on Python and FastAPI for high performance.',
+                'tech.ai.title': 'AI Modeling',
+                'tech.ai.desc': 'Uses AI models to predict crop yields and financial sustainability of farmers.',
+                'tech.status.title': 'Current Status',
+                'tech.status.item1': 'Mobile version launch',
+                'tech.status.item2': 'Expansion to different crops',
+                'tech.status.item3': 'Algorithm accuracy improvement',
+                'cta.title': 'Try the System in Action',
+                'cta.subtitle': 'Access to a working prototype. Upload data and get instant scoring.',
+                'api.badge': 'For Developers',
+                'api.title': 'API Access',
+                'api.description': 'Integrate our scoring API into your systems. Full documentation with request and response examples.',
+                'api.button': 'API Documentation',
+                'chat.title': 'AI Assistant',
+                'chat.placeholder': 'Ask a question...'
+            },
+            uz: {
+                'page.title': 'AgroScore.AI - Demo',
+                'nav.home': 'Bosh sahifa',
+                'hero.title': 'Platforma sharhi',
+                'hero.subtitle': 'Fermer xo\'jaliklari skoringining real vaqtda qanday ishlashini ko\'ring.',
+                'hero.cta': 'Prototipga o\'tish',
+                'about.title': 'Loyiha haqida',
+                'about.desc1': 'Demo bizning ilovamiz fermerlarning moliyaviy, iqlim va ishlab chiqarish ma\'lumotlarini qanday tahlil qilishini va ularni kredit bo\'yicha tavsiyalar bilan skoring balliga aylantirishini ko\'rsatadi.',
+                'about.desc2': 'Bu yechim banklarga xavflarni kamaytirishga yordam beradi va qishloq xo\'jaligi ishlab chiqaruvchilarini moliyalashtirishni shaffof va qulay qiladi. Tizim turli manbalardan ma\'lumotlarni avtomatik ravishda to\'playdi va yagona qarz oluvchi profilini yaratadi.',
+                'features.risk.title': 'Xavflarni kamaytirish',
+                'features.risk.desc': 'Aniq prognozlash orqali qaytarilmaydigan kreditlarni minimallashtirish.',
+                'features.transparency.title': 'Shaffoflik',
+                'features.transparency.desc': 'Barcha ishtirokchilar uchun tushunarli qaror qabul qilish mantiqi.',
+                'tech.title': 'Texnologik stek',
+                'tech.core.title': 'Asosiy arxitektura',
+                'tech.core.desc': 'Yuqori unumdorlik uchun Python va FastAPI asosida qurilgan.',
+                'tech.ai.title': 'AI Modellashtirish',
+                'tech.ai.desc': 'Fermerlarning hosildorligini va moliyaviy barqarorligini bashorat qilish uchun AI modellaridan foydalanadi.',
+                'tech.status.title': 'Joriy holat',
+                'tech.status.item1': 'Mobil versiyani ishga tushirish',
+                'tech.status.item2': 'Turli ekinlarga kengaytirish',
+                'tech.status.item3': 'Algoritmlar aniqligini yaxshilash',
+                'cta.title': 'Tizimni amalda sinab ko\'ring',
+                'cta.subtitle': 'Ishlaydigan prototipga kirish. Ma\'lumotlarni yuklang va bir zumda skoring oling.',
+                'api.badge': 'Dasturchilarga',
+                'api.title': 'API kirish',
+                'api.description': 'Bizning skoring API-ni tizimlaringizga integratsiya qiling. So\'rovlar va javoblar misollari bilan to\'liq hujjatlar.',
+                'api.button': 'API hujjatlari',
+                'chat.title': 'AI Yordamchi',
+                'chat.placeholder': 'Savol bering...'
+            }
+        };
+
+        const langCodes = {
+            'ru': 'RU',
+            'en': 'EN',
+            'uz': 'UZ'
+        };
+
+        // Toggle language menu
+        function toggleLangMenu() {
+            const menu = document.getElementById('lang-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            const switcher = document.getElementById('lang-switcher');
+            const menu = document.getElementById('lang-menu');
+            if (!switcher.contains(e.target) && !menu.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        // Switch language
+        function switchLanguage(lang) {
+            if (!translations[lang]) return;
+
+            // Update all elements with data-i18n attribute
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang][key]) {
+                    el.textContent = translations[lang][key];
+                }
+            });
+
+            // Update placeholder separately
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (translations[lang][key]) {
+                    el.placeholder = translations[lang][key];
+                }
+            });
+
+            // Update page title
+            const titleEl = document.querySelector('title[data-i18n]');
+            if (titleEl) {
+                const key = titleEl.getAttribute('data-i18n');
+                if (translations[lang][key]) {
+                    document.title = translations[lang][key];
+                }
+            }
+
+            // Update current language display
+            document.getElementById('current-lang').textContent = langCodes[lang];
+
+            // Save to localStorage
+            localStorage.setItem('preferredLanguage', lang);
+
+            // Close menu
+            document.getElementById('lang-menu').classList.add('hidden');
+
+            // Reinitialize Lucide icons
+            lucide.createIcons();
+        }
+
+        // Initialize language on page load
+        (function initLanguage() {
+            const savedLang = localStorage.getItem('preferredLanguage') || 'en';
+            if (savedLang !== 'en') {
+                switchLanguage(savedLang);
+            } else {
+                // Initialize with English on first load
+                switchLanguage('en');
+            }
+        })();
+    </script>
+</body>
+
+</html>
